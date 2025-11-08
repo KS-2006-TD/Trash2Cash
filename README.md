@@ -123,7 +123,6 @@ We gamify waste collection with:
 
 ### **AI Integration**
 
-- **RunAnywhere SDK** for on-device AI inference
 - **Computer Vision** for plastic waste detection
 - **Weight Estimation** algorithms
 - **Confidence Scoring** system
