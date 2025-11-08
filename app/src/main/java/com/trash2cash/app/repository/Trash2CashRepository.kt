@@ -39,21 +39,11 @@ class Trash2CashRepository(private val context: Context) {
         mutableMapOf<String, Pair<String, String>>() // userId -> (hashedPassword, salt)
 
     init {
-        // CRITICAL: Initialize demo user password hashes immediately
-        // This runs synchronously to ensure hashes are available before any login attempt
+        // CRITICAL: Initialize demo users and password hashes immediately
+        // This runs synchronously to ensure data is available before any login attempt
         kotlinx.coroutines.runBlocking {
-            initializeDemoPasswordHashes()
+            createSampleUsers() // This ensures users exist and password hashes are set
         }
-    }
-
-    private suspend fun initializeDemoPasswordHashes() {
-        // Always create password hashes for demo users
-        // These MUST match the demo user IDs
-        val (citizenHash, citizenSalt) = authService.hashPassword("demo123")
-        passwordHashes["citizen_demo"] = Pair(citizenHash, citizenSalt)
-
-        val (municipalHash, municipalSalt) = authService.hashPassword("demo123")
-        passwordHashes["municipal_demo"] = Pair(municipalHash, municipalSalt)
     }
 
     // Authentication operations
