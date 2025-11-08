@@ -801,6 +801,7 @@ fun CitizenApp(
                 CitizenTab.WALLET -> CitizenWallet(viewModel, user, paddingValues)
                 CitizenTab.LEADERBOARD -> CitizenLeaderboard(viewModel, user, paddingValues)
                 CitizenTab.CHALLENGES -> CitizenChallenges(viewModel, user, paddingValues)
+                CitizenTab.PROFILE -> CitizenProfile(viewModel, user, paddingValues, onLogout)
             }
         }
     }
@@ -1726,6 +1727,7 @@ private fun getCitizenTabIcon(tab: CitizenTab): ImageVector {
         CitizenTab.WALLET -> Icons.Default.AccountBalanceWallet
         CitizenTab.LEADERBOARD -> Icons.Default.Leaderboard
         CitizenTab.CHALLENGES -> Icons.Default.EmojiEvents
+        CitizenTab.PROFILE -> Icons.Default.Person
     }
 }
 
@@ -1736,6 +1738,7 @@ private fun getCitizenTabLabel(tab: CitizenTab): String {
         CitizenTab.WALLET -> "Wallet"
         CitizenTab.LEADERBOARD -> "Leaderboard"
         CitizenTab.CHALLENGES -> "Challenges"
+        CitizenTab.PROFILE -> "Profile"
     }
 }
 
@@ -1750,7 +1753,7 @@ private fun getStatusEmoji(status: VerificationStatus): String {
 }
 
 enum class CitizenTab {
-    DASHBOARD, SUBMIT, WALLET, LEADERBOARD, CHALLENGES
+    DASHBOARD, SUBMIT, WALLET, LEADERBOARD, CHALLENGES, PROFILE
 }
 
 @Composable
@@ -2138,5 +2141,612 @@ private fun getStatusText(status: VerificationStatus): String {
         VerificationStatus.PENDING -> "Pending Verification"
         VerificationStatus.AI_PROCESSED -> "AI Processed"
         VerificationStatus.DISPUTED -> "Disputed"
+    }
+}
+
+@Composable
+fun CitizenProfile(
+    viewModel: Trash2CashViewModel,
+    user: User,
+    paddingValues: PaddingValues,
+    onLogout: () -> Unit
+) {
+    val context = LocalContext.current
+    val userSubmissions by viewModel.userSubmissions.collectAsState(initial = emptyList())
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    fun shareApp() {
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Join Trash2Cash!")
+            putExtra(
+                Intent.EXTRA_TEXT,
+                """
+                🌱 Join me on Trash2Cash - Digital Waste Reward Wallet!
+                
+                Turn your plastic waste into rewards! 
+                
+                📸 Capture waste
+                ✅ Get verified
+                💰 Earn points
+                🎁 Redeem vouchers
+                
+                Download now and start earning rewards for a cleaner planet!
+                
+                #Trash2Cash #Sustainability #GreenLiving #WasteManagement
+                """.trimIndent()
+            )
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Trash2Cash via"))
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Profile Header with Avatar
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Avatar Circle
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = user.name.take(2).uppercase(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = user.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = user.email,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (user.phoneNumber.isNotEmpty()) {
+                        Text(
+                            text = user.phoneNumber,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Member since badge
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CalendarToday,
+                                contentDescription = "Member since",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Member since ${
+                                    SimpleDateFormat(
+                                        "MMM yyyy",
+                                        Locale.getDefault()
+                                    ).format(user.createdAt)
+                                }",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Stats Overview
+        item {
+            Text(
+                text = "📊 Your Impact",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ProfileStatCard(
+                    title = "Total Points",
+                    value = "${user.totalPoints}",
+                    icon = Icons.Default.Star,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                ProfileStatCard(
+                    title = "Waste Collected",
+                    value = "${String.format("%.1f", user.totalWasteCollected)} kg",
+                    icon = Icons.Default.Delete,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ProfileStatCard(
+                    title = "CO₂ Saved",
+                    value = "${String.format("%.1f", user.totalCO2Saved)} kg",
+                    icon = Icons.Default.Eco,
+                    color = Color(0xFF10B981),
+                    modifier = Modifier.weight(1f)
+                )
+                ProfileStatCard(
+                    title = "Submissions",
+                    value = "${userSubmissions.size}",
+                    icon = Icons.Default.PhotoCamera,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        // Achievements Section
+        item {
+            Text(
+                text = "🏆 Achievements",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AchievementItem(
+                        icon = "🌱",
+                        title = "Eco Warrior",
+                        description = "Collected ${
+                            String.format(
+                                "%.1f",
+                                user.totalWasteCollected
+                            )
+                        } kg of waste",
+                        isUnlocked = user.totalWasteCollected >= 1
+                    )
+                    Divider()
+                    AchievementItem(
+                        icon = "⭐",
+                        title = "Point Master",
+                        description = "Earned ${user.totalPoints} points",
+                        isUnlocked = user.totalPoints >= 100
+                    )
+                    Divider()
+                    AchievementItem(
+                        icon = "📸",
+                        title = "Photographer",
+                        description = "Submitted ${userSubmissions.size} photos",
+                        isUnlocked = userSubmissions.size >= 5
+                    )
+                    Divider()
+                    AchievementItem(
+                        icon = "✅",
+                        title = "Verified Pro",
+                        description = "${userSubmissions.count { it.verificationStatus == VerificationStatus.VERIFIED }} verified submissions",
+                        isUnlocked = userSubmissions.count { it.verificationStatus == VerificationStatus.VERIFIED } >= 3
+                    )
+                }
+            }
+        }
+
+        // Share App Section
+        item {
+            Text(
+                text = "💚 Spread the Word",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = "Share",
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Share Trash2Cash",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Help your friends earn rewards while saving the planet!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { shareApp() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Share App")
+                    }
+                }
+            }
+        }
+
+        // App Settings
+        item {
+            Text(
+                text = "⚙️ Settings",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    ProfileActionItem(
+                        icon = Icons.Default.DarkMode,
+                        title = "Theme",
+                        subtitle = "Switch between Light and Dark mode",
+                        onClick = { showThemeDialog = true }
+                    )
+                    Divider()
+                    ProfileActionItem(
+                        icon = Icons.Default.Edit,
+                        title = "Edit Profile",
+                        subtitle = "Update your information",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Coming soon!",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                    Divider()
+                    ProfileActionItem(
+                        icon = Icons.Default.Notifications,
+                        title = "Notifications",
+                        subtitle = "Manage notification preferences",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Coming soon!",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                    Divider()
+                    ProfileActionItem(
+                        icon = Icons.Default.Info,
+                        title = "About",
+                        subtitle = "App version 1.0.0",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Trash2Cash v1.0.0\nDigital Waste Reward Wallet",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    )
+                    Divider()
+                    ProfileActionItem(
+                        icon = Icons.Default.Logout,
+                        title = "Logout",
+                        subtitle = "Sign out of your account",
+                        onClick = onLogout,
+                        isDestructive = true
+                    )
+                }
+            }
+        }
+
+        // Bottom spacing
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    // Theme Selection Dialog
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.DarkMode,
+                    contentDescription = "Theme",
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = "Choose Theme",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ThemeOptionCard(
+                        title = "☀️ Light Mode",
+                        description = "Bright and clean interface",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Light mode selected (feature coming soon)",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOptionCard(
+                        title = "🌙 Dark Mode",
+                        description = "Easy on the eyes",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Dark mode selected (feature coming soon)",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOptionCard(
+                        title = "🔄 System Default",
+                        description = "Follow device settings",
+                        onClick = {
+                            android.widget.Toast.makeText(
+                                context,
+                                "System default selected",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            showThemeDialog = false
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ProfileStatCard(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = color.copy(alpha = 0.1f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                icon,
+                contentDescription = title,
+                modifier = Modifier.size(32.dp),
+                tint = color
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+fun AchievementItem(
+    icon: String,
+    title: String,
+    description: String,
+    isUnlocked: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isUnlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (isUnlocked) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = "Unlocked",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Icon(
+                Icons.Default.Lock,
+                contentDescription = "Locked",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileActionItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = title,
+                tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Navigate",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThemeOptionCard(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Select",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
