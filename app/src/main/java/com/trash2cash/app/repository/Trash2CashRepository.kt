@@ -39,17 +39,6 @@ class Trash2CashRepository(private val context: Context) {
     private val passwordHashes =
         mutableMapOf<String, Pair<String, String>>() // userId -> (hashedPassword, salt)
 
-    init {
-        // Initialize sample data asynchronously to avoid blocking
-        kotlinx.coroutines.GlobalScope.launch {
-            try {
-                createSampleUsers()
-            } catch (e: Exception) {
-                android.util.Log.e("Trash2Cash", "Failed to initialize sample users", e)
-            }
-        }
-    }
-
     // Authentication operations
     suspend fun getUserById(userId: String): User? {
         return userDao.getUserById(userId)
