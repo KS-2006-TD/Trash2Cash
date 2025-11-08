@@ -30,7 +30,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:name=".Trash2CashApplication"
         android:allowBackup="true"
         android:largeHeap="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
