@@ -40,7 +40,12 @@ class AuthViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 _authState.value = AuthState.Loading
-
+                
+                // For demo/hackathon: Always start at welcome screen
+                // Comment this section and uncomment below to enable auto-login
+                _authState.value = AuthState.NotAuthenticated
+                
+                /* Uncomment this for production with persistent login:
                 if (authService.isLoggedIn() && !authService.isSessionExpired()) {
                     val userId = authService.getCurrentUserId()
                     if (userId != null) {
@@ -61,6 +66,7 @@ class AuthViewModel(context: Context) : ViewModel() {
                     }
                     _authState.value = AuthState.NotAuthenticated
                 }
+                */
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Failed to check authentication: ${e.message}")
             }
