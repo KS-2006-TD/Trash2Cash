@@ -1,4 +1,4 @@
-package com.runanywhere.startup_hackathon20
+package com.trash2cash.app
 
 import org.junit.Test
 

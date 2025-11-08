@@ -9,6 +9,16 @@ class Trash2CashApplication : Application() {
         private const val TAG = "Trash2CashApp"
     }
 
+    /**
+     * Initialize app-wide dependencies and sample data
+     *
+     * In production, this would handle:
+     * - Database initialization
+     * - Service initialization
+     * - AI model loading
+     * - Analytics setup
+     * - Crash reporting
+     */
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Trash2Cash Application initialized")
@@ -26,7 +36,7 @@ class Trash2CashApplication : Application() {
         // - Network clients
         // - Analytics
         // - Crash reporting
-        // - AI models (in production, this would be RunAnywhere SDK)
+        // - AI models
 
         Log.d(TAG, "App initialization completed")
     }

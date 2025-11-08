@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "startup_hackathon2.0"
+rootProject.name = "Trash2Cash"
 include(":app")
