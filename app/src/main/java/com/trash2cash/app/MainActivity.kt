@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Theme state managed at top level
+            // Theme state management
             var isDarkTheme by remember { mutableStateOf(false) }
 
             Trash2CashTheme(darkTheme = isDarkTheme) {
@@ -54,9 +54,9 @@ class MainActivity : ComponentActivity() {
 
                 Trash2CashMainApp(
                     authViewModel = authViewModel,
-                    viewModel = trash2CashViewModel,
+                    trash2CashViewModel = trash2CashViewModel,
                     isDarkTheme = isDarkTheme,
-                    onThemeToggle = { isDarkTheme = !isDarkTheme }
+                    onToggleTheme = { isDarkTheme = !isDarkTheme }
                 )
             }
         }
@@ -74,9 +74,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun Trash2CashMainApp(
         authViewModel: AuthViewModel,
-        viewModel: Trash2CashViewModel,
+        trash2CashViewModel: Trash2CashViewModel,
         isDarkTheme: Boolean,
-        onThemeToggle: () -> Unit
+        onToggleTheme: () -> Unit
     ) {
         val authState by authViewModel.authState.collectAsState()
 
@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
                             user = currentState.user,
                             onLogout = { authViewModel.logout() },
                             isDarkTheme = isDarkTheme,
-                            onThemeToggle = onThemeToggle
+                            onToggleTheme = onToggleTheme
                         )
                     }
                     UserRole.MUNICIPAL_WORKER -> {
