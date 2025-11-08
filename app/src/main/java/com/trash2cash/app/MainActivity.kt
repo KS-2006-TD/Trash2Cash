@@ -43,22 +43,35 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            // Theme state managed at top level
-            var isDarkTheme by remember { mutableStateOf(false) }
 
-            Trash2CashTheme(darkTheme = isDarkTheme) {
-                val context = LocalContext.current
-                val authViewModel: AuthViewModel = viewModel { AuthViewModel(context) }
-                trash2CashViewModel = viewModel { Trash2CashViewModel(context) }
+        try {
+            setContent {
+                // Theme state managed at top level
+                var isDarkTheme by remember { mutableStateOf(false) }
 
-                Trash2CashMainApp(
-                    authViewModel = authViewModel,
-                    viewModel = trash2CashViewModel,
-                    isDarkTheme = isDarkTheme,
-                    onThemeToggle = { isDarkTheme = !isDarkTheme }
-                )
+                Trash2CashTheme(darkTheme = isDarkTheme) {
+                    val context = LocalContext.current
+                    val authViewModel: AuthViewModel = viewModel { AuthViewModel(context) }
+                    trash2CashViewModel = viewModel { Trash2CashViewModel(context) }
+
+                    Trash2CashMainApp(
+                        authViewModel = authViewModel,
+                        viewModel = trash2CashViewModel,
+                        isDarkTheme = isDarkTheme,
+                        onThemeToggle = { isDarkTheme = !isDarkTheme }
+                    )
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "FATAL: App initialization failed", e)
+            e.printStackTrace()
+            // Show a toast and finish
+            android.widget.Toast.makeText(
+                this,
+                "App failed to start: ${e.message}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
         }
     }
 
