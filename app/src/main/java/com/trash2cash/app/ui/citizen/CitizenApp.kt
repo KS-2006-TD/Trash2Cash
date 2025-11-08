@@ -2174,6 +2174,9 @@ fun CitizenProfile(
                 
                 Download now and start earning rewards for a cleaner planet!
                 
+                📥 Download: https://github.com/KS-2006-TD/Trash2Cash
+                🌐 Website: https://trash2cash.app
+                
                 #Trash2Cash #Sustainability #GreenLiving #WasteManagement
                 """.trimIndent()
             )
