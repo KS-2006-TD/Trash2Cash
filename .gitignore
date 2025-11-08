@@ -86,6 +86,9 @@ lint/intermediates/
 lint/generated/
 lint/outputs/
 lint/tmp/
+lint-results.html
+lint-results.xml
+lint-results_files/
 
 # Android Profiling
 *.hprof
