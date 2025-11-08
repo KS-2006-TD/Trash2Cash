@@ -58,6 +58,7 @@ fun CitizenApp(
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var showLeaderboard by remember { mutableStateOf(false) }
     var showChallenges by remember { mutableStateOf(false) }
+    var isDarkTheme by remember { mutableStateOf(false) }
 
     // Observe UI state for submission status
     val uiState by viewModel.uiState.collectAsState()
@@ -856,8 +857,17 @@ fun CitizenApp(
                             }
                         }
 
-                        IconButton(onClick = onLogout) {
-                            Icon(Icons.Default.Logout, contentDescription = "Logout")
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Theme Toggle with Emoji
+                        IconButton(
+                            onClick = { isDarkTheme = !isDarkTheme }
+                        ) {
+                            Text(
+                                text = if (isDarkTheme) "☀️" else "🌙",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontSize = 24.sp
+                            )
                         }
                     }
                 )
@@ -2295,7 +2305,6 @@ fun CitizenProfile(
 ) {
     val context = LocalContext.current
     val userSubmissions by viewModel.userSubmissions.collectAsState(initial = emptyList())
-    var showThemeDialog by remember { mutableStateOf(false) }
 
     fun shareApp() {
         val shareIntent = Intent().apply {
@@ -2314,10 +2323,10 @@ fun CitizenProfile(
                 💰 Earn points
                 🎁 Redeem vouchers
                 
-                Download now and start earning rewards for a cleaner planet!
+                Download the app and start earning rewards for a cleaner planet!
                 
-                📥 Download: https://github.com/KS-2006-TD/Trash2Cash
-                🌐 Website: https://trash2cash.app
+                📥 Download APK: https://github.com/KS-2006-TD/Trash2Cash/releases/latest
+                🌐 GitHub: https://github.com/KS-2006-TD/Trash2Cash
                 
                 #Trash2Cash #Sustainability #GreenLiving #WasteManagement
                 """.trimIndent()
@@ -2590,13 +2599,6 @@ fun CitizenProfile(
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     ProfileActionItem(
-                        icon = Icons.Default.DarkMode,
-                        title = "Theme",
-                        subtitle = "Switch between Light and Dark mode",
-                        onClick = { showThemeDialog = true }
-                    )
-                    Divider()
-                    ProfileActionItem(
                         icon = Icons.Default.Edit,
                         title = "Edit Profile",
                         subtitle = "Update your information",
@@ -2652,75 +2654,6 @@ fun CitizenProfile(
         }
     }
 
-    // Theme Selection Dialog
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.DarkMode,
-                    contentDescription = "Theme",
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = {
-                Text(
-                    text = "Choose Theme",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ThemeOptionCard(
-                        title = "☀️ Light Mode",
-                        description = "Bright and clean interface",
-                        onClick = {
-                            android.widget.Toast.makeText(
-                                context,
-                                "Light mode selected (feature coming soon)",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOptionCard(
-                        title = "🌙 Dark Mode",
-                        description = "Easy on the eyes",
-                        onClick = {
-                            android.widget.Toast.makeText(
-                                context,
-                                "Dark mode selected (feature coming soon)",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOptionCard(
-                        title = "🔄 System Default",
-                        description = "Follow device settings",
-                        onClick = {
-                            android.widget.Toast.makeText(
-                                context,
-                                "System default selected",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            showThemeDialog = false
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @Composable
