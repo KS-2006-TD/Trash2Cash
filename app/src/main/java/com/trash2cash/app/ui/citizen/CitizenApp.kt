@@ -50,6 +50,7 @@ fun CitizenApp(
     var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var locationName by remember { mutableStateOf("Current Location") }
+    var showFullSubmissions by remember { mutableStateOf(false) }
 
     // Observe UI state for submission status
     val uiState by viewModel.uiState.collectAsState()
@@ -74,8 +75,10 @@ fun CitizenApp(
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val imageUri = result.data?.getParcelableExtra<Uri>(CameraActivity.EXTRA_IMAGE_URI)
             imageUri?.let { uri ->
-                // Show location dialog instead of submitting immediately
+                // Automatically get location and show dialog
                 capturedImageUri = uri
+                // TODO: Get actual GPS location
+                locationName = "Current Location (GPS: 28.6139, 77.2090)"
                 showLocationDialog = true
             }
         }
@@ -130,8 +133,15 @@ fun CitizenApp(
             text = {
                 Column {
                     Text(
-                        text = "Where did you collect this waste?",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Location automatically detected",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "You can edit the location name below:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
@@ -146,11 +156,29 @@ fun CitizenApp(
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "📍 GPS: 28.6139, 77.2090",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.MyLocation,
+                                contentDescription = "GPS",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "GPS: 28.6139, 77.2090",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -164,6 +192,12 @@ fun CitizenApp(
                     },
                     enabled = locationName.isNotBlank()
                 ) {
+                    Icon(
+                        Icons.Default.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Submit Waste")
                 }
             },
@@ -209,7 +243,11 @@ fun CitizenApp(
                 }
             },
             confirmButton = {
-                Button(onClick = { showSubmissionDialog = false }) {
+                Button(onClick = {
+                    showSubmissionDialog = false
+                    // Refresh data after submission
+                    viewModel.refreshData()
+                }) {
                     Text("Got it!")
                 }
             }
@@ -237,99 +275,127 @@ fun CitizenApp(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Trash2Cash", fontWeight = FontWeight.Bold)
-                },
-                actions = {
-                    // Points display
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = "Points",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${user.totalPoints}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    IconButton(onClick = onLogout) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                CitizenTab.values().forEach { tab ->
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                getCitizenTabIcon(tab),
-                                contentDescription = tab.name,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        },
-                        label = { Text(getCitizenTabLabel(tab)) },
-                        selected = currentTab == tab,
-                        onClick = {
-                            if (tab == CitizenTab.SUBMIT) {
-                                launchCamera()
-                            } else {
-                                currentTab = tab
+    // Full Screen My Submissions
+    if (showFullSubmissions) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("My Submissions") },
+                        navigationIcon = {
+                            IconButton(onClick = { showFullSubmissions = false }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                             }
                         }
                     )
                 }
-            }
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { launchCamera() },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = "Capture Waste")
+            ) { padding ->
+                CitizenMySubmissions(
+                    viewModel = viewModel,
+                    user = user,
+                    paddingValues = padding
+                )
             }
         }
-    ) { paddingValues ->
-        when (currentTab) {
-            CitizenTab.DASHBOARD -> CitizenDashboard(
-                viewModel,
-                user,
-                paddingValues,
-                onCameraClick = { launchCamera() },
-                onViewAllSubmissions = { }
-            )
-            CitizenTab.SUBMIT -> {
-                // This is handled by camera launch, show dashboard
-                CitizenDashboard(
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text("Trash2Cash", fontWeight = FontWeight.Bold)
+                    },
+                    actions = {
+                        // Points display
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = "Points",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${user.totalPoints}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = onLogout) {
+                            Icon(Icons.Default.Logout, contentDescription = "Logout")
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                NavigationBar {
+                    CitizenTab.values().forEach { tab ->
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    getCitizenTabIcon(tab),
+                                    contentDescription = tab.name,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            label = { Text(getCitizenTabLabel(tab)) },
+                            selected = currentTab == tab,
+                            onClick = {
+                                if (tab == CitizenTab.SUBMIT) {
+                                    launchCamera()
+                                } else {
+                                    currentTab = tab
+                                }
+                            }
+                        )
+                    }
+                }
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { launchCamera() },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Capture Waste")
+                }
+            }
+        ) { paddingValues ->
+            when (currentTab) {
+                CitizenTab.DASHBOARD -> CitizenDashboard(
                     viewModel,
                     user,
                     paddingValues,
                     onCameraClick = { launchCamera() },
-                    onViewAllSubmissions = { }
+                    onViewAllSubmissions = { showFullSubmissions = true },
+                    onNavigateToWallet = { currentTab = CitizenTab.WALLET }
                 )
-            }
+                CitizenTab.SUBMIT -> {
+                    // This is handled by camera launch, show dashboard
+                    CitizenDashboard(
+                        viewModel,
+                        user,
+                        paddingValues,
+                        onCameraClick = { launchCamera() },
+                        onViewAllSubmissions = { showFullSubmissions = true },
+                        onNavigateToWallet = { currentTab = CitizenTab.WALLET }
+                    )
+                }
 
-            CitizenTab.WALLET -> CitizenWallet(viewModel, user, paddingValues)
-            CitizenTab.LEADERBOARD -> CitizenLeaderboard(viewModel, user, paddingValues)
-            CitizenTab.CHALLENGES -> CitizenChallenges(viewModel, user, paddingValues)
+                CitizenTab.WALLET -> CitizenWallet(viewModel, user, paddingValues)
+                CitizenTab.LEADERBOARD -> CitizenLeaderboard(viewModel, user, paddingValues)
+                CitizenTab.CHALLENGES -> CitizenChallenges(viewModel, user, paddingValues)
+            }
         }
     }
 }
@@ -340,12 +406,12 @@ fun CitizenDashboard(
     user: User,
     paddingValues: PaddingValues,
     onCameraClick: () -> Unit,
-    onViewAllSubmissions: () -> Unit
+    onViewAllSubmissions: () -> Unit,
+    onNavigateToWallet: () -> Unit
 ) {
     val userStats by viewModel.userStats.collectAsState(initial = null)
     val globalStats by viewModel.globalStats.collectAsState(initial = null)
     val userSubmissions by viewModel.userSubmissions.collectAsState(initial = emptyList())
-    var showAllSubmissions by remember { mutableStateOf(false) }
 
     // Auto-refresh data periodically to show real-time updates
     LaunchedEffect(Unit) {
@@ -374,7 +440,11 @@ fun CitizenDashboard(
 
         // Quick actions
         item {
-            QuickActionsSection(onCameraClick = onCameraClick)
+            QuickActionsSection(
+                onCameraClick = onCameraClick,
+                onViewHistory = onViewAllSubmissions,
+                onRedeemPoints = onNavigateToWallet
+            )
         }
 
         // My Submissions Section Header
@@ -389,7 +459,7 @@ fun CitizenDashboard(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                TextButton(onClick = { showAllSubmissions = true }) {
+                TextButton(onClick = onViewAllSubmissions) {
                     Text("View All →")
                 }
             }
@@ -471,46 +541,6 @@ fun CitizenDashboard(
         item {
             globalStats?.let { stats ->
                 GlobalImpactCard(stats = stats)
-            }
-        }
-    }
-
-    // Full screen submissions dialog
-    if (showAllSubmissions) {
-        Dialog(onDismissRequest = { showAllSubmissions = false }) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column {
-                    // Header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "All My Submissions",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        IconButton(onClick = { showAllSubmissions = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
-                        }
-                    }
-
-                    // Content
-                    CitizenMySubmissions(
-                        viewModel = viewModel,
-                        user = user,
-                        paddingValues = PaddingValues(0.dp)
-                    )
-                }
             }
         }
     }
@@ -815,7 +845,11 @@ fun StatsRow(user: User, userStats: CitizenStats?) {
 }
 
 @Composable
-fun QuickActionsSection(onCameraClick: () -> Unit) {
+fun QuickActionsSection(
+    onCameraClick: () -> Unit,
+    onViewHistory: () -> Unit,
+    onRedeemPoints: () -> Unit
+) {
     Column {
         Text(
             text = "Quick Actions",
@@ -837,14 +871,14 @@ fun QuickActionsSection(onCameraClick: () -> Unit) {
                 QuickActionButton(
                     title = "View History",
                     icon = Icons.Default.History,
-                    onClick = { /* Navigate to history */ }
+                    onClick = onViewHistory
                 )
             }
             item {
                 QuickActionButton(
                     title = "Redeem Points",
                     icon = Icons.Default.CardGiftcard,
-                    onClick = { /* Navigate to wallet */ }
+                    onClick = onRedeemPoints
                 )
             }
         }

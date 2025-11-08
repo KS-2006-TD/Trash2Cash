@@ -30,6 +30,11 @@ class Trash2CashViewModel(context: Context) : ViewModel() {
     // Municipal worker specific flows
     val pendingVerifications = repository.getPendingVerifications()
 
+    // All submissions flow
+    fun getAllSubmissions(): Flow<List<WasteSubmission>> {
+        return repository.getAllSubmissions()
+    }
+
     // Stats
     private val _userStats = MutableStateFlow<CitizenStats?>(null)
     val userStats: StateFlow<CitizenStats?> = _userStats.asStateFlow()

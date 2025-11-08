@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.trash2cash.app.data.*
 import com.trash2cash.app.viewmodel.Trash2CashViewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -111,8 +112,16 @@ fun MunicipalVerifyScreen(
 ) {
     val pendingSubmissions by viewModel.pendingVerifications.collectAsState(initial = emptyList())
     val municipalStats by viewModel.municipalStats.collectAsState(initial = null)
+    val allSubmissions by viewModel.getAllSubmissions().collectAsState(initial = emptyList())
 
     var selectedSubmission by remember { mutableStateOf<WasteSubmission?>(null) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(5000)
+            viewModel.refreshData()
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -121,9 +130,12 @@ fun MunicipalVerifyScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Stats header
         item {
-            MunicipalStatsCard(stats = municipalStats, user = user)
+            MunicipalStatsCard(
+                stats = municipalStats,
+                user = user,
+                allSubmissions = allSubmissions
+            )
         }
 
         item {
@@ -167,6 +179,7 @@ fun MunicipalVerifyScreen(
                     rejectionReason = ""
                 )
                 selectedSubmission = null
+                viewModel.refreshData()
             },
             onReject = { reason, comments ->
                 viewModel.verifyWasteSubmission(
@@ -178,6 +191,7 @@ fun MunicipalVerifyScreen(
                     rejectionReason = reason
                 )
                 selectedSubmission = null
+                viewModel.refreshData()
             }
         )
     }
@@ -344,10 +358,21 @@ fun MunicipalProfileScreen(
     }
 }
 
-// Municipal-specific composables
-
 @Composable
-fun MunicipalStatsCard(stats: MunicipalStats?, user: User) {
+fun MunicipalStatsCard(
+    stats: MunicipalStats?,
+    user: User,
+    allSubmissions: List<WasteSubmission>
+) {
+    val verifiedCount =
+        allSubmissions.count { it.verificationStatus == VerificationStatus.VERIFIED }
+    val rejectedCount =
+        allSubmissions.count { it.verificationStatus == VerificationStatus.REJECTED }
+    val pendingCount = allSubmissions.count {
+        it.verificationStatus == VerificationStatus.PENDING ||
+                it.verificationStatus == VerificationStatus.AI_PROCESSED
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -360,7 +385,44 @@ fun MunicipalStatsCard(stats: MunicipalStats?, user: User) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Officer: ${user.name}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                StatusColumn(
+                    icon = Icons.Default.CheckCircle,
+                    count = verifiedCount,
+                    label = "Verified",
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.weight(1f)
+                )
+                StatusColumn(
+                    icon = Icons.Default.HourglassEmpty,
+                    count = pendingCount,
+                    label = "Pending",
+                    color = Color(0xFFFFA726),
+                    modifier = Modifier.weight(1f)
+                )
+                StatusColumn(
+                    icon = Icons.Default.Cancel,
+                    count = rejectedCount,
+                    label = "Rejected",
+                    color = Color(0xFFEF5350),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -368,36 +430,83 @@ fun MunicipalStatsCard(stats: MunicipalStats?, user: User) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${stats?.pendingVerifications ?: 0}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                    Text("Pending", style = MaterialTheme.typography.bodySmall)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
                         text = "${stats?.verifiedToday ?: 0}",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Text("Today", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "Today",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${stats?.totalVerifications ?: 0}",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Total", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "All Time",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val accuracy = if (verifiedCount + rejectedCount > 0) {
+                        (verifiedCount.toFloat() / (verifiedCount + rejectedCount)) * 100
+                    } else 0f
+                    Text(
+                        text = "${String.format("%.0f", accuracy)}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (accuracy >= 80) Color(0xFF4CAF50) else Color(0xFFFFA726)
+                    )
+                    Text(
+                        "Approval Rate",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StatusColumn(
+    icon: ImageVector,
+    count: Int,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            modifier = Modifier.size(36.dp),
+            tint = color
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "$count",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
 @Composable
 fun VerificationSubmissionCard(
     submission: WasteSubmission,

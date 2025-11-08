@@ -256,6 +256,10 @@ class Trash2CashRepository(private val context: Context) {
         return wasteSubmissionDao.getPendingVerifications()
     }
 
+    fun getAllSubmissions(): Flow<List<WasteSubmission>> {
+        return wasteSubmissionDao.getAllSubmissions()
+    }
+
     fun getSubmissionsVerifiedBy(municipalId: String): Flow<List<WasteSubmission>> {
         return wasteSubmissionDao.getSubmissionsVerifiedBy(municipalId)
     }
