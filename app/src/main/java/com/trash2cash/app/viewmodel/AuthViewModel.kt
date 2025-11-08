@@ -8,6 +8,7 @@ import com.trash2cash.app.repository.Trash2CashRepository
 import com.trash2cash.app.services.AuthResult
 import com.trash2cash.app.services.AuthState
 import com.trash2cash.app.services.AuthenticationService
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.*

@@ -11,14 +11,26 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 class Trash2CashRepository(private val context: Context) {
-    
-    private val database = Room.databaseBuilder(
-        context,
-        Trash2CashDatabase::class.java,
-        Trash2CashDatabase.DATABASE_NAME
-    )
-        .fallbackToDestructiveMigration() // Recreate DB on schema changes during development
-        .build()
+
+    private val database = try {
+        Room.databaseBuilder(
+            context,
+            Trash2CashDatabase::class.java,
+            Trash2CashDatabase.DATABASE_NAME
+        )
+            .fallbackToDestructiveMigration() // Recreate DB on schema changes during development
+            .build()
+    } catch (e: Exception) {
+        android.util.Log.e("Trash2Cash", "Database creation failed, retrying...", e)
+        // Retry with a simple database
+        Room.databaseBuilder(
+            context,
+            Trash2CashDatabase::class.java,
+            Trash2CashDatabase.DATABASE_NAME
+        )
+            .fallbackToDestructiveMigration()
+            .build()
+    }
 
     // Services
     private val wasteVerificationService = WasteVerificationService(context)
