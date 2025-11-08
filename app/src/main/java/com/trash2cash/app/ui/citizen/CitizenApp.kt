@@ -51,6 +51,10 @@ fun CitizenApp(
     var showLocationDialog by remember { mutableStateOf(false) }
     var locationName by remember { mutableStateOf("Current Location") }
     var showFullSubmissions by remember { mutableStateOf(false) }
+    var userEstimatedWeight by remember { mutableStateOf("") }
+    var showWeightVerificationDialog by remember { mutableStateOf(false) }
+    var aiEstimatedWeight by remember { mutableStateOf(0f) }
+    var finalLocationName by remember { mutableStateOf("") }
 
     // Observe UI state for submission status
     val uiState by viewModel.uiState.collectAsState()
@@ -79,6 +83,7 @@ fun CitizenApp(
                 capturedImageUri = uri
                 // TODO: Get actual GPS location
                 locationName = "Current Location (GPS: 28.6139, 77.2090)"
+                userEstimatedWeight = ""
                 showLocationDialog = true
             }
         }
@@ -98,13 +103,33 @@ fun CitizenApp(
         }
     }
 
-    fun submitPhoto(uri: Uri, location: String) {
+    fun proceedToAIVerification() {
+        // Store location for later use
+        finalLocationName = locationName
+
+        // Simulate AI verification of weight
+        val userWeight = userEstimatedWeight.toFloatOrNull() ?: 0f
+
+        // Simulate AI estimation (AI estimates ±20% of user's estimate)
+        val variation = (Math.random() * 0.4 - 0.2).toFloat() // -20% to +20%
+        aiEstimatedWeight = if (userWeight > 0) {
+            (userWeight * (1 + variation)).coerceAtLeast(0.1f)
+        } else {
+            // If user didn't enter weight, AI estimates between 0.1 and 2.0 kg
+            (0.1f + Math.random() * 1.9).toFloat()
+        }
+
+        showLocationDialog = false
+        showWeightVerificationDialog = true
+    }
+
+    fun submitPhoto(uri: Uri, location: String, weight: Float) {
         viewModel.submitWastePhoto(
             imageUri = uri.toString(),
             latitude = 28.6139, // TODO: Get from location service
             longitude = 77.2090, // TODO: Get from location service
             locationName = location,
-            description = ""
+            description = "User estimated: ${userEstimatedWeight.ifEmpty { "Not provided" }} kg"
         )
     }
 
@@ -125,148 +150,230 @@ fun CitizenApp(
             },
             title = {
                 Text(
-                    text = "Confirm Location",
+                    text = "Waste Details",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Column {
-                    Text(
-                        text = "Location automatically detected",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "You can edit the location name below:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = locationName,
-                        onValueChange = { locationName = it },
-                        label = { Text("Location Name") },
-                        placeholder = { Text("e.g., City Park, Beach, Street") },
-                        leadingIcon = {
-                            Icon(Icons.Default.LocationOn, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // GPS Coordinates Card with Use GPS button
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Text(
+                            text = "📍 Location Information",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    }
+
+                    item {
+                        Text(
+                            text = "Location automatically detected",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "You can edit the location name below:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    item {
+                        OutlinedTextField(
+                            value = locationName,
+                            onValueChange = { locationName = it },
+                            label = { Text("Location Name") },
+                            placeholder = { Text("e.g., City Park, Beach, Street") },
+                            leadingIcon = {
+                                Icon(Icons.Default.LocationOn, contentDescription = null)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    item {
+                        // GPS Coordinates Card with Use GPS button
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Default.MyLocation,
-                                    contentDescription = "GPS",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        Icons.Default.MyLocation,
+                                        contentDescription = "GPS",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = "GPS: 28.6139, 77.2090",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "New Delhi, India",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                // Use GPS Button
+                                Button(
+                                    onClick = {
+                                        // Update location to current GPS
+                                        // TODO: Get actual GPS coordinates using FusedLocationProvider
+                                        locationName = "Current Location (GPS: 28.6139, 77.2090)"
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Location updated to current GPS coordinates",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    modifier = Modifier.height(36.dp),
+                                    contentPadding = PaddingValues(
+                                        horizontal = 12.dp,
+                                        vertical = 8.dp
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.GpsFixed,
+                                        contentDescription = "Use GPS",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "GPS: 28.6139, 77.2090",
+                                        text = "Use GPS",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Medium
                                     )
-                                    Text(
-                                        text = "New Delhi, India",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
                                 }
-                            }
-
-                            // Use GPS Button
-                            Button(
-                                onClick = {
-                                    // Update location to current GPS
-                                    // TODO: Get actual GPS coordinates using FusedLocationProvider
-                                    locationName = "Current Location (GPS: 28.6139, 77.2090)"
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Location updated to current GPS coordinates",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                modifier = Modifier.height(36.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.GpsFixed,
-                                    contentDescription = "Use GPS",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Use GPS",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium
-                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
-                    // Info text
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = "Info",
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    item {
                         Text(
-                            text = "Click 'Use GPS' to update to your current location",
+                            text = "⚖️ Estimated Weight (Optional)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Enter your estimated weight of the waste collected. AI will verify and suggest adjustments.",
                             style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    item {
+                        OutlinedTextField(
+                            value = userEstimatedWeight,
+                            onValueChange = { userEstimatedWeight = it },
+                            label = { Text("Estimated Weight (kg)") },
+                            placeholder = { Text("e.g., 0.5, 1.0, 2.5") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Scale, contentDescription = null)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                            ),
+                            singleLine = true,
+                            supportingText = {
+                                if (userEstimatedWeight.isNotEmpty()) {
+                                    val weight = userEstimatedWeight.toFloatOrNull()
+                                    if (weight != null && weight > 0) {
+                                        Text(
+                                            text = "Estimated points: ${(weight * 10).toInt()} pts",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Please enter a valid weight",
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                } else {
+                                    Text("AI will estimate if not provided")
+                                }
+                            }
+                        )
+                    }
+
+                    item {
+                        // Info text
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(
+                                    alpha = 0.5f
+                                )
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Info,
+                                    contentDescription = "Info",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "AI will verify your estimate and you can choose which value to submit",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        capturedImageUri?.let { uri ->
-                            submitPhoto(uri, locationName)
-                        }
-                        showLocationDialog = false
-                        capturedImageUri = null
+                        proceedToAIVerification()
                     },
                     enabled = locationName.isNotBlank()
                 ) {
                     Icon(
-                        Icons.Default.Send,
+                        Icons.Default.Psychology,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Submit Waste")
+                    Text("Verify with AI")
                 }
             },
             dismissButton = {
@@ -275,6 +382,237 @@ fun CitizenApp(
                     capturedImageUri = null
                 }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // AI Weight Verification Dialog
+    if (showWeightVerificationDialog && capturedImageUri != null) {
+        AlertDialog(
+            onDismissRequest = { },
+            icon = {
+                Icon(
+                    Icons.Default.Psychology,
+                    contentDescription = "AI",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "AI Weight Verification",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "AI has analyzed your waste photo. Choose which weight estimate to submit:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    // User's Estimate Card
+                    Card(
+                        onClick = {
+                            val userWeight =
+                                userEstimatedWeight.toFloatOrNull() ?: aiEstimatedWeight
+                            capturedImageUri?.let { uri ->
+                                submitPhoto(uri, finalLocationName, userWeight)
+                            }
+                            showWeightVerificationDialog = false
+                            capturedImageUri = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (userEstimatedWeight.isNotEmpty())
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        enabled = userEstimatedWeight.isNotEmpty()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Your Estimate",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (userEstimatedWeight.isNotEmpty()) {
+                                        val userWeight = userEstimatedWeight.toFloatOrNull() ?: 0f
+                                        Text(
+                                            text = "${String.format("%.2f", userWeight)} kg",
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "Points: ${(userWeight * 10).toInt()} pts",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Not provided",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (userEstimatedWeight.isNotEmpty()) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = "User",
+                                        modifier = Modifier.size(40.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // AI's Estimate Card
+                    Card(
+                        onClick = {
+                            capturedImageUri?.let { uri ->
+                                submitPhoto(uri, finalLocationName, aiEstimatedWeight)
+                            }
+                            showWeightVerificationDialog = false
+                            capturedImageUri = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "AI Estimate",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.AutoAwesome,
+                                            contentDescription = "Recommended",
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                    Text(
+                                        text = "${String.format("%.2f", aiEstimatedWeight)} kg",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    Text(
+                                        text = "Points: ${(aiEstimatedWeight * 10).toInt()} pts",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "Confidence: ${(85 + Math.random() * 10).toInt()}%",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    Icons.Default.Psychology,
+                                    contentDescription = "AI",
+                                    modifier = Modifier.size(40.dp),
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+
+                    // Comparison Info
+                    if (userEstimatedWeight.isNotEmpty()) {
+                        val userWeight = userEstimatedWeight.toFloatOrNull() ?: 0f
+                        val difference = aiEstimatedWeight - userWeight
+                        val percentDiff =
+                            if (userWeight > 0) (difference / userWeight * 100) else 0f
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(
+                                    alpha = 0.5f
+                                )
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.CompareArrows,
+                                    contentDescription = "Difference",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = if (difference > 0)
+                                            "AI suggests ${
+                                                String.format(
+                                                    "%.2f",
+                                                    difference
+                                                )
+                                            } kg more"
+                                        else
+                                            "AI suggests ${
+                                                String.format(
+                                                    "%.2f",
+                                                    -difference
+                                                )
+                                            } kg less",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "(${
+                                            String.format(
+                                                "%.0f",
+                                                percentDiff
+                                            )
+                                        }% difference)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showWeightVerificationDialog = false
+                    showLocationDialog = true
+                }) {
+                    Text("Go Back")
                 }
             }
         )
