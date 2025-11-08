@@ -55,6 +55,9 @@ fun CitizenApp(
     var showWeightVerificationDialog by remember { mutableStateOf(false) }
     var aiEstimatedWeight by remember { mutableStateOf(0f) }
     var finalLocationName by remember { mutableStateOf("") }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showLeaderboard by remember { mutableStateOf(false) }
+    var showChallenges by remember { mutableStateOf(false) }
 
     // Observe UI state for submission status
     val uiState by viewModel.uiState.collectAsState()
@@ -89,6 +92,18 @@ fun CitizenApp(
         }
     }
 
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // Automatically get location and show dialog
+            capturedImageUri = it
+            locationName = "Current Location (GPS: 28.6139, 77.2090)"
+            userEstimatedWeight = ""
+            showLocationDialog = true
+        }
+    }
+
     fun launchCamera() {
         try {
             val intent = CameraActivity.newIntent(context)
@@ -101,6 +116,14 @@ fun CitizenApp(
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    fun launchGallery() {
+        galleryLauncher.launch("image/*")
+    }
+
+    fun showImageSourcePicker() {
+        showImageSourceDialog = true
     }
 
     fun proceedToAIVerification() {
@@ -660,6 +683,55 @@ fun CitizenApp(
         )
     }
 
+    // Image Source Picker Dialog
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.AddAPhoto,
+                    contentDescription = "Upload",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text("Choose Image Source", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            showImageSourceDialog = false
+                            launchCamera()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = "Camera", modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Take Photo")
+                    }
+                    Button(
+                        onClick = {
+                            showImageSourceDialog = false
+                            launchGallery()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Collections, contentDescription = "Gallery", modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Choose from Gallery")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Loading Dialog during AI processing
     if (uiState.isProcessingSubmission) {
         AlertDialog(
@@ -699,6 +771,52 @@ fun CitizenApp(
                 }
             ) { padding ->
                 CitizenMySubmissions(
+                    viewModel = viewModel,
+                    user = user,
+                    paddingValues = padding
+                )
+            }
+        }
+    } else if (showLeaderboard) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Leaderboard") },
+                        navigationIcon = {
+                            IconButton(onClick = { showLeaderboard = false }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                CitizenLeaderboard(
+                    viewModel = viewModel,
+                    user = user,
+                    paddingValues = padding
+                )
+            }
+        }
+    } else if (showChallenges) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Challenges") },
+                        navigationIcon = {
+                            IconButton(onClick = { showChallenges = false }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                CitizenChallenges(
                     viewModel = viewModel,
                     user = user,
                     paddingValues = padding
@@ -759,10 +877,16 @@ fun CitizenApp(
                             selected = currentTab == tab,
                             onClick = {
                                 if (tab == CitizenTab.SUBMIT) {
-                                    launchCamera()
+                                    showImageSourcePicker()
                                 } else {
                                     currentTab = tab
                                 }
+
+                                // Launch full-screen leaderboard/challenges views if needed
+                                if (tab == CitizenTab.DASHBOARD) {
+                                    // No-op
+                                }
+                                // NOTE: CitizenTab.LEADERBOARD and CitizenTab.CHALLENGES are handled via dedicated variables
                             }
                         )
                     }
@@ -770,7 +894,7 @@ fun CitizenApp(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { launchCamera() },
+                    onClick = { showImageSourcePicker() },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = "Capture Waste")
@@ -782,25 +906,27 @@ fun CitizenApp(
                     viewModel,
                     user,
                     paddingValues,
-                    onCameraClick = { launchCamera() },
+                    onCameraClick = { showImageSourcePicker() },
                     onViewAllSubmissions = { showFullSubmissions = true },
-                    onNavigateToWallet = { currentTab = CitizenTab.WALLET }
+                    onNavigateToWallet = { currentTab = CitizenTab.WALLET },
+                    onNavigateToLeaderboard = { showLeaderboard = true },
+                    onNavigateToChallenges = { showChallenges = true }
                 )
                 CitizenTab.SUBMIT -> {
-                    // This is handled by camera launch, show dashboard
+                    // This is handled by image source dialog, show dashboard instead
                     CitizenDashboard(
                         viewModel,
                         user,
                         paddingValues,
-                        onCameraClick = { launchCamera() },
+                        onCameraClick = { showImageSourcePicker() },
                         onViewAllSubmissions = { showFullSubmissions = true },
-                        onNavigateToWallet = { currentTab = CitizenTab.WALLET }
+                        onNavigateToWallet = { currentTab = CitizenTab.WALLET },
+                        onNavigateToLeaderboard = { showLeaderboard = true },
+                        onNavigateToChallenges = { showChallenges = true }
                     )
                 }
 
                 CitizenTab.WALLET -> CitizenWallet(viewModel, user, paddingValues)
-                CitizenTab.LEADERBOARD -> CitizenLeaderboard(viewModel, user, paddingValues)
-                CitizenTab.CHALLENGES -> CitizenChallenges(viewModel, user, paddingValues)
                 CitizenTab.PROFILE -> CitizenProfile(viewModel, user, paddingValues, onLogout)
             }
         }
@@ -814,7 +940,9 @@ fun CitizenDashboard(
     paddingValues: PaddingValues,
     onCameraClick: () -> Unit,
     onViewAllSubmissions: () -> Unit,
-    onNavigateToWallet: () -> Unit
+    onNavigateToWallet: () -> Unit,
+    onNavigateToLeaderboard: () -> Unit = {},
+    onNavigateToChallenges: () -> Unit = {}
 ) {
     val userStats by viewModel.userStats.collectAsState(initial = null)
     val globalStats by viewModel.globalStats.collectAsState(initial = null)
@@ -850,7 +978,9 @@ fun CitizenDashboard(
             QuickActionsSection(
                 onCameraClick = onCameraClick,
                 onViewHistory = onViewAllSubmissions,
-                onRedeemPoints = onNavigateToWallet
+                onRedeemPoints = onNavigateToWallet,
+                onLeaderboardClick = onNavigateToLeaderboard,
+                onChallengesClick = onNavigateToChallenges
             )
         }
 
@@ -1255,7 +1385,9 @@ fun StatsRow(user: User, userStats: CitizenStats?) {
 fun QuickActionsSection(
     onCameraClick: () -> Unit,
     onViewHistory: () -> Unit,
-    onRedeemPoints: () -> Unit
+    onRedeemPoints: () -> Unit,
+    onLeaderboardClick: () -> Unit = {},
+    onChallengesClick: () -> Unit = {}
 ) {
     Column {
         Text(
@@ -1286,6 +1418,20 @@ fun QuickActionsSection(
                     title = "Redeem Points",
                     icon = Icons.Default.CardGiftcard,
                     onClick = onRedeemPoints
+                )
+            }
+            item {
+                QuickActionButton(
+                    title = "Leaderboard",
+                    icon = Icons.Default.Leaderboard,
+                    onClick = onLeaderboardClick
+                )
+            }
+            item {
+                QuickActionButton(
+                    title = "Challenges",
+                    icon = Icons.Default.Flag,
+                    onClick = onChallengesClick
                 )
             }
         }
@@ -1725,8 +1871,6 @@ private fun getCitizenTabIcon(tab: CitizenTab): ImageVector {
         CitizenTab.DASHBOARD -> Icons.Default.Dashboard
         CitizenTab.SUBMIT -> Icons.Default.CameraAlt
         CitizenTab.WALLET -> Icons.Default.AccountBalanceWallet
-        CitizenTab.LEADERBOARD -> Icons.Default.Leaderboard
-        CitizenTab.CHALLENGES -> Icons.Default.EmojiEvents
         CitizenTab.PROFILE -> Icons.Default.Person
     }
 }
@@ -1736,8 +1880,6 @@ private fun getCitizenTabLabel(tab: CitizenTab): String {
         CitizenTab.DASHBOARD -> "Dashboard"
         CitizenTab.SUBMIT -> "Submit"
         CitizenTab.WALLET -> "Wallet"
-        CitizenTab.LEADERBOARD -> "Leaderboard"
-        CitizenTab.CHALLENGES -> "Challenges"
         CitizenTab.PROFILE -> "Profile"
     }
 }
@@ -1753,7 +1895,7 @@ private fun getStatusEmoji(status: VerificationStatus): String {
 }
 
 enum class CitizenTab {
-    DASHBOARD, SUBMIT, WALLET, LEADERBOARD, CHALLENGES, PROFILE
+    DASHBOARD, SUBMIT, WALLET, PROFILE
 }
 
 @Composable
