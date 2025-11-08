@@ -39,7 +39,9 @@ import java.util.*
 @Composable
 fun CitizenApp(
     user: User,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel: Trash2CashViewModel = viewModel { Trash2CashViewModel(context) }
@@ -58,7 +60,6 @@ fun CitizenApp(
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var showLeaderboard by remember { mutableStateOf(false) }
     var showChallenges by remember { mutableStateOf(false) }
-    var isDarkTheme by remember { mutableStateOf(false) }
 
     // Observe UI state for submission status
     val uiState by viewModel.uiState.collectAsState()
@@ -861,7 +862,7 @@ fun CitizenApp(
 
                         // Theme Toggle with Emoji
                         IconButton(
-                            onClick = { isDarkTheme = !isDarkTheme }
+                            onClick = { onThemeToggle() }
                         ) {
                             Text(
                                 text = if (isDarkTheme) "☀️" else "🌙",
