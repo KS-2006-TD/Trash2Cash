@@ -12,9 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.trash2cash.app.data.*
 import com.trash2cash.app.services.AuthState
 import com.trash2cash.app.ui.auth.LandingScreen
@@ -30,58 +28,138 @@ class MainActivity : ComponentActivity() {
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val imageUri = result.data?.getParcelableExtra<Uri>(CameraActivity.EXTRA_IMAGE_URI)
-            imageUri?.let { uri ->
-                // TODO: Get actual location - for now using dummy coordinates
-                handleImageCapture(uri.toString(), 28.6139, 77.2090, "Current Location")
-            }
-        }
+        // Handle camera result
     }
 
-    private lateinit var trash2CashViewModel: Trash2CashViewModel
+    private var trash2CashViewModel: Trash2CashViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        try {
-            setContent {
-                // Theme state managed at top level
-                var isDarkTheme by remember { mutableStateOf(false) }
+        android.util.Log.d("MainActivity", "onCreate called")
 
-                Trash2CashTheme(darkTheme = isDarkTheme) {
-                    val context = LocalContext.current
-                    val authViewModel: AuthViewModel = viewModel { AuthViewModel(context) }
-                    trash2CashViewModel = viewModel { Trash2CashViewModel(context) }
+        setContent {
+            MainScreen()
+        }
+    }
+
+    @Composable
+    fun MainScreen() {
+        // Theme state
+        var isDarkTheme by remember { mutableStateOf(false) }
+        var isInitialized by remember { mutableStateOf(false) }
+        var initError by remember { mutableStateOf<String?>(null) }
+
+        Trash2CashTheme(darkTheme = isDarkTheme) {
+            if (initError != null) {
+                // Show error
+                ErrorScreen(error = initError ?: "Unknown error")
+            } else if (!isInitialized) {
+                // Show loading
+                LoadingScreen()
+
+                // Initialize in background
+                LaunchedEffect(Unit) {
+                    try {
+                        kotlinx.coroutines.delay(500) // Give UI time to render
+                        android.util.Log.d("MainActivity", "Initialization complete")
+                        isInitialized = true
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Init failed", e)
+                        initError = e.message
+                    }
+                }
+            } else {
+                // Show main app
+                var viewModelError by remember { mutableStateOf<String?>(null) }
+
+                if (viewModelError != null) {
+                    ErrorScreen(error = "Failed to load: $viewModelError")
+                } else {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val authViewModel: AuthViewModel =
+                        androidx.lifecycle.viewmodel.compose.viewModel {
+                            AuthViewModel(context)
+                        }
+
+                    if (trash2CashViewModel == null) {
+                        trash2CashViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
+                            Trash2CashViewModel(context)
+                        }
+                    }
 
                     Trash2CashMainApp(
                         authViewModel = authViewModel,
-                        viewModel = trash2CashViewModel,
+                        viewModel = trash2CashViewModel!!,
                         isDarkTheme = isDarkTheme,
                         onThemeToggle = { isDarkTheme = !isDarkTheme }
                     )
                 }
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "FATAL: App initialization failed", e)
-            e.printStackTrace()
-            // Show a toast and finish
-            android.widget.Toast.makeText(
-                this,
-                "App failed to start: ${e.message}",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
-            finish()
         }
     }
 
-    private fun handleImageCapture(imageUri: String, latitude: Double, longitude: Double, locationName: String) {
-        trash2CashViewModel.submitWastePhoto(imageUri, latitude, longitude, locationName)
+    @Composable
+    fun LoadingScreen() {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Loading Trash2Cash...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
     }
 
-    private fun launchCamera() {
-        val intent = CameraActivity.newIntent(this)
-        cameraLauncher.launch(intent)
+    @Composable
+    fun ErrorScreen(error: String) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "⚠️ Error",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { recreate() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Restart App")
+                }
+            }
+        }
     }
 
     @Composable
@@ -97,10 +175,7 @@ class MainActivity : ComponentActivity() {
             is AuthState.NotAuthenticated -> {
                 LandingScreen(
                     authViewModel = authViewModel,
-                    onNavigateToApp = {
-                        // This will be called when authentication is successful
-                        // The state change will automatically navigate to the correct app
-                    }
+                    onNavigateToApp = { }
                 )
             }
             is AuthState.Authenticated -> {
@@ -120,7 +195,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     UserRole.ADMIN -> {
-                        // Admin interface can be added later
                         MunicipalApp(
                             user = currentState.user,
                             onLogout = { authViewModel.logout() }
@@ -129,41 +203,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
             is AuthState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                LoadingScreen()
             }
             is AuthState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Authentication Error",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = currentState.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { authViewModel.logout() }) {
-                            Text("Try Again")
-                        }
-                    }
-                }
+                ErrorScreen(error = currentState.message)
             }
         }
     }
