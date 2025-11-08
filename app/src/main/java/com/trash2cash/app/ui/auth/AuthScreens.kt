@@ -100,21 +100,12 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // App Logo/Icon
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.primary),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.Recycling,
-                contentDescription = "Trash2Cash Logo",
-                modifier = Modifier.size(80.dp),
-                tint = Color.White
-            )
-        }
+        // App Logo - Using actual launcher icon
+        Image(
+            painter = painterResource(id = com.trash2cash.app.R.mipmap.ic_launcher),
+            contentDescription = "Trash2Cash Logo",
+            modifier = Modifier.size(120.dp)
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -595,20 +586,14 @@ fun RegistrationScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // App Logo/Icon with recycling symbol
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Recycling,
-                    contentDescription = "Trash2Cash Logo",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.White
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // App Logo - Using actual launcher icon
+            Image(
+                painter = painterResource(id = com.trash2cash.app.R.mipmap.ic_launcher),
+                contentDescription = "Trash2Cash Logo",
+                modifier = Modifier.size(100.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
