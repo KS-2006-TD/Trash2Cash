@@ -7,30 +7,17 @@ import com.trash2cash.app.services.AuthenticationService
 import com.trash2cash.app.services.WasteVerificationService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.util.*
 
 class Trash2CashRepository(private val context: Context) {
-
-    private val database = try {
-        Room.databaseBuilder(
-            context,
-            Trash2CashDatabase::class.java,
-            Trash2CashDatabase.DATABASE_NAME
-        )
-            .fallbackToDestructiveMigration() // Recreate DB on schema changes during development
-            .build()
-    } catch (e: Exception) {
-        android.util.Log.e("Trash2Cash", "Database creation failed, retrying...", e)
-        // Retry with a simple database
-        Room.databaseBuilder(
-            context,
-            Trash2CashDatabase::class.java,
-            Trash2CashDatabase.DATABASE_NAME
-        )
-            .fallbackToDestructiveMigration()
-            .build()
-    }
+    
+    private val database = Room.databaseBuilder(
+        context,
+        Trash2CashDatabase::class.java,
+        Trash2CashDatabase.DATABASE_NAME
+    )
+        .fallbackToDestructiveMigration() // Recreate DB on schema changes during development
+        .build()
 
     // Services
     private val wasteVerificationService = WasteVerificationService(context)
@@ -51,6 +38,24 @@ class Trash2CashRepository(private val context: Context) {
     private val passwordHashes =
         mutableMapOf<String, Pair<String, String>>() // userId -> (hashedPassword, salt)
 
+    init {
+        // CRITICAL: Initialize demo user password hashes immediately
+        // This runs synchronously to ensure hashes are available before any login attempt
+        kotlinx.coroutines.runBlocking {
+            initializeDemoPasswordHashes()
+        }
+    }
+
+    private suspend fun initializeDemoPasswordHashes() {
+        // Always create password hashes for demo users
+        // These MUST match the demo user IDs
+        val (citizenHash, citizenSalt) = authService.hashPassword("demo123")
+        passwordHashes["citizen_demo"] = Pair(citizenHash, citizenSalt)
+
+        val (municipalHash, municipalSalt) = authService.hashPassword("demo123")
+        passwordHashes["municipal_demo"] = Pair(municipalHash, municipalSalt)
+    }
+
     // Authentication operations
     suspend fun getUserById(userId: String): User? {
         return userDao.getUserById(userId)
@@ -67,16 +72,6 @@ class Trash2CashRepository(private val context: Context) {
 
     suspend fun authenticateUser(email: String, password: String, role: UserRole): User? {
         android.util.Log.d("Trash2CashAuth", "Attempting login - Email: $email, Role: $role")
-
-        // Ensure demo users exist before attempting authentication
-        if (email == "citizen@demo.com" || email == "municipal@demo.com") {
-            val userId = if (email == "citizen@demo.com") "citizen_demo" else "municipal_demo"
-            val userExists = getUserById(userId)
-            if (userExists == null) {
-                android.util.Log.d("Trash2CashAuth", "Demo user not found, creating...")
-                createSampleUsers()
-            }
-        }
 
         val user = getUserByEmailAndRole(email, role)
         android.util.Log.d("Trash2CashAuth", "User found: ${user != null}, ID: ${user?.id}")

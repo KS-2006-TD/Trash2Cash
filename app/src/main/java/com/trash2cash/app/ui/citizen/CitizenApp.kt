@@ -2306,8 +2306,6 @@ fun CitizenProfile(
 ) {
     val context = LocalContext.current
     val userSubmissions by viewModel.userSubmissions.collectAsState(initial = emptyList())
-
-    // Edit profile dialog state
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf(user.name) }
     var editedEmail by remember { mutableStateOf(user.email) }
@@ -2340,6 +2338,164 @@ fun CitizenProfile(
             )
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Trash2Cash via"))
+    }
+
+    // Edit Profile Dialog
+    if (showEditProfileDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showEditProfileDialog = false
+                // Reset to original values
+                editedName = user.name
+                editedEmail = user.email
+                editedPhone = user.phoneNumber
+            },
+            icon = {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Edit Profile",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Edit Profile",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Update your profile information",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Name field
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Full Name") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+
+                    // Email field
+                    OutlinedTextField(
+                        value = editedEmail,
+                        onValueChange = { editedEmail = it },
+                        label = { Text("Email Address") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Email, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+
+                    // Phone field
+                    OutlinedTextField(
+                        value = editedPhone,
+                        onValueChange = { editedPhone = it },
+                        label = { Text("Phone Number") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Phone, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+
+                    // Info text
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = "Info",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Changes will be saved to your profile",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Update user profile
+                        viewModel.updateProfile(
+                            name = editedName,
+                            email = editedEmail,
+                            phoneNumber = editedPhone
+                        )
+                        showEditProfileDialog = false
+                        android.widget.Toast.makeText(
+                            context,
+                            "Profile updated successfully!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    enabled = editedName.isNotBlank() && editedEmail.isNotBlank()
+                ) {
+                    Icon(
+                        Icons.Default.Save,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save Changes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showEditProfileDialog = false
+                    editedName = user.name
+                    editedEmail = user.email
+                    editedPhone = user.phoneNumber
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     LazyColumn(
@@ -2610,6 +2766,9 @@ fun CitizenProfile(
                         title = "Edit Profile",
                         subtitle = "Update your information",
                         onClick = {
+                            editedName = user.name
+                            editedEmail = user.email
+                            editedPhone = user.phoneNumber
                             showEditProfileDialog = true
                         }
                     )
@@ -2644,71 +2803,6 @@ fun CitizenProfile(
         }
     }
 
-    // Edit Profile Dialog
-    if (showEditProfileDialog) {
-        AlertDialog(
-            onDismissRequest = { showEditProfileDialog = false },
-            title = {
-                Text("Edit Profile", fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = editedName,
-                        onValueChange = { editedName = it },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editedEmail,
-                        onValueChange = { editedEmail = it },
-                        label = { Text("Email") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email
-                        )
-                    )
-                    OutlinedTextField(
-                        value = editedPhone,
-                        onValueChange = { editedPhone = it },
-                        label = { Text("Phone Number") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        // TODO: save changes via viewModel (ideally should implement method in ViewModel that updates user profile)
-                        // You may want to update the user object and trigger a backend call in your actual implementation.
-                        android.widget.Toast.makeText(
-                            context,
-                            "Profile updated successfully!",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                        showEditProfileDialog = false
-                    },
-                    enabled = editedName.isNotBlank() && editedEmail.isNotBlank()
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditProfileDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @Composable
