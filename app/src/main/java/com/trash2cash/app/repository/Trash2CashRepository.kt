@@ -7,6 +7,7 @@ import com.trash2cash.app.services.AuthenticationService
 import com.trash2cash.app.services.WasteVerificationService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.*
 
 class Trash2CashRepository(private val context: Context) {
@@ -39,10 +40,13 @@ class Trash2CashRepository(private val context: Context) {
         mutableMapOf<String, Pair<String, String>>() // userId -> (hashedPassword, salt)
 
     init {
-        // CRITICAL: Initialize demo users and password hashes immediately
-        // This runs synchronously to ensure data is available before any login attempt
-        kotlinx.coroutines.runBlocking {
-            createSampleUsers() // This ensures users exist and password hashes are set
+        // Initialize sample data asynchronously to avoid blocking
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                createSampleUsers()
+            } catch (e: Exception) {
+                android.util.Log.e("Trash2Cash", "Failed to initialize sample users", e)
+            }
         }
     }
 
@@ -62,6 +66,16 @@ class Trash2CashRepository(private val context: Context) {
 
     suspend fun authenticateUser(email: String, password: String, role: UserRole): User? {
         android.util.Log.d("Trash2CashAuth", "Attempting login - Email: $email, Role: $role")
+
+        // Ensure demo users exist before attempting authentication
+        if (email == "citizen@demo.com" || email == "municipal@demo.com") {
+            val userId = if (email == "citizen@demo.com") "citizen_demo" else "municipal_demo"
+            val userExists = getUserById(userId)
+            if (userExists == null) {
+                android.util.Log.d("Trash2CashAuth", "Demo user not found, creating...")
+                createSampleUsers()
+            }
+        }
 
         val user = getUserByEmailAndRole(email, role)
         android.util.Log.d("Trash2CashAuth", "User found: ${user != null}, ID: ${user?.id}")
